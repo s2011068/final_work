@@ -1,0 +1,179 @@
+#include <iostream>
+#include<fstream>
+#include<sstream>
+#include<sys/time.h>
+#include<pthread.h>
+#include <malloc.h>
+#include <semaphore.h>
+using namespace std;
+const int n=8;
+const int N=130;
+const int worker_count=7;
+int E[n][N];
+int R[N][N];
+int lp_E[n];
+
+void read( )
+{
+    //读入被消元行信息
+
+    ifstream myfile1("D:/Groebner/测试样例1 矩阵列数130，非零消元子22，被消元行8/被消元行.txt");
+    if (!myfile1.is_open())
+    {
+        cout << "can't open file:2.txt" << endl;
+    }
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<N;j++)
+        {
+            E[i][j]=0;
+        }
+    }
+    int i=0;
+    string line;
+    while(getline(myfile1,line))
+    {
+        stringstream ss(line);
+        int x,count=0;
+        while(ss>>x)
+        {
+            if(count==0)
+            {
+                lp_E[i]=x;
+            }
+            E[i][N-x-1]=1;
+            count++;
+        }
+        i++;
+    }
+    myfile1.close();
+
+    //读入消元子信息
+    ifstream myfile("D:/Groebner/测试样例1 矩阵列数130，非零消元子22，被消元行8/消元子.txt");
+    if (!myfile.is_open())
+    {
+        cout << "can't open file:1.txt" << endl;
+    }
+    for(int i=0;i<N;i++)
+    {
+        for(int j=0;j<N;j++)
+            R[i][j]=-1;
+    }
+    string line1;
+    while(getline(myfile,line1))
+    {
+        stringstream ss(line1);
+        int x,count=0,y;
+        while(ss>>x)
+        {
+            if(count==0)
+            {
+                y=x;
+                for(int i=0;i<N;i++)
+                {
+                    R[N-y-1][i]=0;
+                }
+            }
+            R[N-y-1][N-x-1]=1;
+            count++;
+        }
+    }
+    myfile.close();
+
+}
+typedef struct{
+    int i;
+    int t_id;
+}threadParam_t;
+
+void *threadFunc(void *param)
+{
+     threadParam_t *p=(threadParam_t*)param;
+     int i=p->i;
+     int t_id=p->t_id;
+
+                for(int j=t_id;j<N;j+=worker_count)
+                {
+                    if(E[i][j]==R[N-lp_E[i]-1][j])
+                    {
+                        E[i][j]=0;
+                    }
+                    else
+                    {
+                        E[i][j]=1;
+                    }
+                }
+
+
+
+
+    pthread_exit(NULL);
+}
+int main()
+{
+    read();
+    struct  timeval   tv_begin,tv_end;
+    unsigned  long serial_time;
+
+    gettimeofday(&tv_begin,NULL);
+    for(int i=0;i<n;i++)
+    {
+        while(lp_E[i]!=-1)
+        {
+
+            if(R[N-lp_E[i]-1][0]!=-1)
+            {
+                int temp=-1;
+                pthread_t* handles = (pthread_t*)malloc(worker_count*sizeof(pthread_t));
+                threadParam_t* param = (threadParam_t*)malloc(worker_count*sizeof(pthread_t));
+                for(int t_id=0;t_id<worker_count;t_id++)
+                {
+                    param[t_id].i=i;
+                    param[t_id].t_id=t_id;
+                }
+                for(int t_id=0;t_id<worker_count;t_id++)
+                {
+                    pthread_create(&handles[t_id],NULL,threadFunc,(void *)&param[t_id]);
+                }
+                for(int t_id=0;t_id<worker_count;t_id++)
+                {
+                    pthread_join(handles[t_id],NULL);
+                }
+                for(int j=0;j<N;j++)
+                {
+                    if(E[i][j]==1)
+                    {
+                        lp_E[i]=N-j-1;
+                        temp=j;
+                        break;
+                    }
+                }
+                if(temp==-1)
+                    lp_E[i]=-1;
+            }
+            else
+            {
+                for(int j=0;j<N;j++)
+                {
+                   R[N-lp_E[i]-1][j]=E[i][j];
+                }
+                lp_E[i]=-1;
+                break;
+
+            }
+        }
+
+    }
+    gettimeofday(&tv_end,NULL);
+    serial_time=1000000 * (tv_end.tv_sec-tv_begin.tv_sec)+ tv_end.tv_usec-tv_begin.tv_usec;
+    cout<<"serial_time:"<<serial_time<<endl;
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<N;j++)
+        {
+            if(E[i][j])
+                cout<<N-1-j<<" ";
+        }
+        cout<<endl;
+    }
+}
