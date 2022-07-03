@@ -4,18 +4,20 @@
 #include<sys/time.h>
 
 using namespace std;
-const int n=453;
-const int N=2362;
-
+const int n=1953;
+const int N=3799;
+const int size=1200;
 int E[n][N];
-int R[N][N];
+int R[size][N];
 int lp_E[n];
-
-void read( )
+int temp1[N];
+int index_temp1=0;
+ifstream myfile;
+void read1()
 {
     //读入被消元行信息
 
-    ifstream myfile1("/home/data/Groebner/5_2362_1226_453/2.txt");
+    ifstream myfile1("/home/s2011068/test3/2.txt");
     if (!myfile1.is_open())
     {
         cout << "can't open file:2.txt" << endl;
@@ -46,13 +48,12 @@ void read( )
     }
     myfile1.close();
 
-    //读入消元子信息
-    ifstream myfile("/home/data/Groebner/5_2362_1226_453/1.txt");
+     //读入第一批消元子信息
     if (!myfile.is_open())
     {
         cout << "can't open file:1.txt" << endl;
     }
-    for(int i=0;i<N;i++)
+    for(int i=0;i<size;i++)
     {
         for(int j=0;j<N;j++)
             R[i][j]=-1;
@@ -67,30 +68,114 @@ void read( )
             if(count==0)
             {
                 y=x;
-                for(int i=0;i<N;i++)
+                if(N-1-y>size-1)
                 {
-                    R[N-y-1][i]=0;
+                    index_temp1=y;
+                    for(int i=0;i<N;i++)
+                    {
+                        temp1[i]=0;
+                    }
+                }
+                else
+                {
+                    for(int i=0;i<N;i++)
+                    {
+                        R[(N-y-1)%size][i]=0;
+                    }
                 }
             }
-            R[N-y-1][N-x-1]=1;
+            if(N-1-y>size-1)
+            {
+                temp1[N-x-1]=1;
+            }
+            else
+            {
+                R[(N-y-1)%size][N-x-1]=1;
+            }
             count++;
         }
+        if(N-1-y>=size-1)
+        {
+            break;
+        }
     }
-    myfile.close();
 
 }
-void func()
+void read2( int temp)
+{
+    //读入消元子信息
+     if (!myfile.is_open())
+    {
+        cout << "can't open file:1.txt" << endl;
+    }
+
+    for(int i=0;i<size;i++)
+    {
+        for(int j=0;j<N;j++)
+            R[i][j]=-1;
+    }
+    string line1;
+    if((N-1-index_temp1)>=temp*size&&(N-1-index_temp1)<(temp+1)*size)
+    {
+        for(int i=0;i<N;i++)
+            R[(N-1-index_temp1)%size][i]=temp1[i];
+    }
+    if(index_temp1==0||(N-1-index_temp1)<(temp+1)*size){
+        while(getline(myfile,line1))
+        {
+            stringstream ss(line1);
+            int x,count=0,y;
+            while(ss>>x)
+            {
+                if(count==0)
+                {
+                    y=x;
+                    if(N-1-y>size*(temp+1)-1)
+                    {
+                        index_temp1=y;
+                        for(int i=0;i<N;i++)
+                        {
+                           temp1[i]=0;
+                        }
+                    }
+                    else
+                    {
+                        for(int i=0;i<N;i++)
+                        {
+                            R[(N-y-1)%size][i]=0;
+                        }
+                    }
+                }
+                if(N-1-y>size*(temp+1)-1)
+                {
+                    temp1[N-x-1]=1;
+                }
+                else{
+                    R[(N-y-1)%size][N-x-1]=1;
+                }
+                count++;
+            }
+            if(N-1-y>=size*(temp+1)-1)
+            {
+                break;
+            }
+        }
+    }
+
+}
+void func(int temp)
 {
     for(int i=0;i<n;i++)
     {
-        while(lp_E[i]!=-1)
+        while(lp_E[i]!=-1&&(N-1-lp_E[i])<temp*size)
         {
-            int temp=-1;
-            if(R[N-lp_E[i]-1][0]!=-1)
+            int temp2=-1;
+            //和对应的消元子进行异或计算
+            if(R[(N-lp_E[i]-1)%size][0]!=-1)
             {
                 for(int j=0;j<N;j++)
                 {
-                    if(E[i][j]==R[N-lp_E[i]-1][j])
+                    if(E[i][j]==R[(N-lp_E[i]-1)%size][j])
                     {
                         E[i][j]=0;
                     }
@@ -104,18 +189,22 @@ void func()
                     if(E[i][j]==1)
                     {
                         lp_E[i]=N-j-1;
-                        temp=j;
+                        temp2=j;
                         break;
                     }
                 }
-                if(temp==-1)
+                if(temp2==-1)
+                {
                     lp_E[i]=-1;
+                    break;
+                }
             }
             else
             {
+                //消元子为空，将被消元行升为对应的为空的消元子
                 for(int j=0;j<N;j++)
                 {
-                   R[N-lp_E[i]-1][j]=E[i][j];
+                   R[(N-lp_E[i]-1)%size][j]=E[i][j];
                 }
                 lp_E[i]=-1;
                 break;
@@ -127,15 +216,40 @@ void func()
 }
 int main()
 {
-    read();
     struct  timeval   tv_begin,tv_end;
-    unsigned  long serial_time;
-
+    unsigned  long time1;
     gettimeofday(&tv_begin,NULL);
-
-    func();
+    myfile.open("/home/s2011068/test3/1.txt");
+    read1();
+    int count;
+    if(N%size==0)
+    {
+        count=N/size;
+    }
+    else
+    {
+        count=N/size+1;
+    }
+    for(int k=0;k<count;k++)
+    {
+        func(k+1);
+	    if(k<count-1)
+        {
+		    read2(k+1);
+	    }
+    }
 
     gettimeofday(&tv_end,NULL);
-    serial_time=1000000 * (tv_end.tv_sec-tv_begin.tv_sec)+ tv_end.tv_usec-tv_begin.tv_usec;
-    cout<<"serial_time:"<<serial_time<<endl;	
+    time1=1000000 * (tv_end.tv_sec-tv_begin.tv_sec)+ tv_end.tv_usec-tv_begin.tv_usec;
+    cout<<"time1:"<<time1<<endl;
+   /* //输出最终消元结果
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<N;j++)
+        {
+            if(E[i][j]==1)
+                cout<<N-1-j<<" ";
+        }
+        cout<<endl;
+    }*/
 }
