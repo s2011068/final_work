@@ -1,0 +1,328 @@
+#include <iostream>
+#include<fstream>
+#include<sstream>
+#include<mpi.h>
+#include<algorithm>
+using namespace std;
+const int n=453;
+const int N=2362;
+const int size=N;
+const int NUM_THREADS=8;
+float E[n][N];
+float R[size][N];
+int lp_E[n];
+float temp1[N];
+int index_temp1=0;
+ifstream myfile;
+MPI_Status status;
+int myid;
+int num;
+int t;
+void read1()
+{
+    //读入被消元行信息
+
+    ifstream myfile1("D:/Groebner/测试样例5 矩阵列数2362，非零消元子1226，被消元行453/被消元行.txt");
+    if (!myfile1.is_open())
+    {
+        cout << "can't open file:2.txt" << endl;
+    }
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<N;j++)
+        {
+            E[i][j]=0;
+        }
+    }
+    int i=0;
+    string line;
+    while(getline(myfile1,line))
+    {
+        stringstream ss(line);
+        int x,count=0;
+        while(ss>>x)
+        {
+            if(count==0)
+            {
+                lp_E[i]=x;
+            }
+            E[i][N-x-1]=1;
+            count++;
+        }
+        i++;
+    }
+    myfile1.close();
+    //读入第一批消元子信息
+    if (!myfile.is_open())
+    {
+        cout << "can't open file:1.txt" << endl;
+    }
+    for(int i=0;i<size;i++)
+    {
+        for(int j=0;j<N;j++)
+            R[i][j]=-1;
+    }
+    string line1;
+    while(getline(myfile,line1))
+    {
+        stringstream ss(line1);
+        int x,count=0,y;
+        while(ss>>x)
+        {
+
+            if(count==0)
+            {
+                y=x;
+                if(N-1-y>size-1)
+                {
+                    index_temp1=y;
+                    for(int i=0;i<N;i++)
+                    {
+                        temp1[i]=0;
+                    }
+                }
+                else
+                {
+                    for(int i=0;i<N;i++)
+                    {
+                        R[(N-y-1)%size][i]=0;
+                    }
+                }
+            }
+            if(N-1-y>size-1)
+            {
+                temp1[N-x-1]=1;
+            }
+            else
+            {
+                R[(N-y-1)%size][N-x-1]=1;
+            }
+            count++;
+        }
+        if(N-1-y>=size-1)
+        {
+            break;
+        }
+    }
+
+}
+void read2( int temp)
+{
+    //读入消元子信息
+     if (!myfile.is_open())
+    {
+        cout << "can't open file:1.txt" << endl;
+    }
+
+    for(int i=0;i<size;i++)
+    {
+        for(int j=0;j<N;j++)
+            R[i][j]=-1;
+    }
+    string line1;
+    if((N-1-index_temp1)>=temp*size&&(N-1-index_temp1)<(temp+1)*size)
+    {
+        for(int i=0;i<N;i++)
+            R[(N-1-index_temp1)%size][i]=temp1[i];
+    }
+    if(index_temp1==0||(N-1-index_temp1)<(temp+1)*size){
+        while(getline(myfile,line1))
+        {
+            stringstream ss(line1);
+            int x,count=0,y;
+            while(ss>>x)
+            {
+                if(count==0)
+                {
+                    y=x;
+                    if(N-1-y>size*(temp+1)-1)
+                    {
+                        index_temp1=y;
+                        for(int i=0;i<N;i++)
+                        {
+                           temp1[i]=0;
+                        }
+                    }
+                    else
+                    {
+                        for(int i=0;i<N;i++)
+                        {
+                            R[(N-y-1)%size][i]=0;
+                        }
+                    }
+                }
+                if(N-1-y>size*(temp+1)-1)
+                {
+                    temp1[N-x-1]=1;
+                }
+                else
+                {
+                    R[(N-y-1)%size][N-x-1]=1;
+                }
+                count++;
+
+            }
+            if(N-1-y>=size*(temp+1)-1)
+            {
+                break;
+            }
+        }
+    }
+
+}
+void func(int temp)
+{
+    int i,j;
+    for(i=0;i<size;i++)
+    {
+		if(myid==0)
+		{
+			t=N;
+            for(j=0;j<n;j++)
+            {
+                int temp2=-1;
+                if((N-1-lp_E[j])==(temp*size+i))
+                {
+                    int k;
+                    //判断本行消元子是否为空
+                    if(R[i][0]==-1)
+                    {
+                        //消元子为空，将第一个首项为消元子行数相同的被消元行升为消元子
+                        for(k=0;k<N;k++)
+                        {
+                            R[i][k]=E[j][k];
+                        }
+                        lp_E[j]=-1;
+                    }
+                    else
+                    {
+                        for(k=0;k<N;k++)
+                        {
+                            if(E[j][k]==R[i][k])
+                                E[j][k]=0;
+                            else
+                                E[j][k]=1;
+                        }
+                        for(k=0;k<N;k++)
+                        {
+                            if(E[j][k]==1)
+                            {
+                                lp_E[j]=N-1-k;
+                                temp2=k;
+                                break;
+                            }
+
+                        }
+                        if(temp2==-1)
+                        {
+                            lp_E[j]=-1;
+                        }
+                    }
+                    t=j;
+                    break;
+                }
+            }
+			for(int id=0;id<num;id++)
+			{
+				MPI_Send(R,size*N,MPI_FLOAT,id,0,MPI_COMM_WORLD);
+			}
+			for(int id=0;id<num;id++)
+			{
+				MPI_Send(E,n*N,MPI_FLOAT,id,1,MPI_COMM_WORLD);
+			}
+			for(int id=0;id<num;id++)
+			{
+				MPI_Send(lp_E,N,MPI_INT,id,2,MPI_COMM_WORLD);
+			}
+			for(int id=0;id<num;id++)
+			{
+				MPI_Send(&t,1,MPI_INT,id,3,MPI_COMM_WORLD);
+			}
+		}
+		else
+		{
+			MPI_Recv(R,size*N,MPI_FLOAT,0,0,MPI_COMM_WORLD,&status);
+			MPI_Recv(E,n*N,MPI_FLOAT,0,1,MPI_COMM_WORLD,&status);
+			MPI_Recv(lp_E,N,MPI_INT,0,2,MPI_COMM_WORLD,&status);
+			MPI_Recv(&t,1,MPI_INT,0,3,MPI_COMM_WORLD,&status);
+
+		}
+            //继续和首项为消元子行数的被消元行进行异或计算
+
+			for(j=t+myid;j<n;j+=num)
+      {
+					int temp2=-1;
+					if(N-1-lp_E[j]==(temp*size+i))
+					{
+						int k;
+						for(k=0;k<N;k++)
+						{
+							if(E[j][k]==R[i][k])
+								E[j][k]=0;
+							else
+								E[j][k]=1;
+						}
+						for(k=0;k<N;k++)
+						{
+							if(E[j][k]==1)
+							{
+								lp_E[j]=N-1-k;
+								temp2=k;
+								break;
+							}
+
+						}
+						if(temp2==-1)
+						{
+							lp_E[j]=-1;
+						}
+					}
+			}
+    }
+
+}
+int main(int argc,char *argv[])
+{
+    unsigned  long serial_time;
+    MPI_Init(&argc,&argv);
+    MPI_Comm_rank(MPI_COMM_WORLD,&myid);
+    MPI_Comm_size(MPI_COMM_WORLD,&num);
+	double st=MPI_Wtime();
+    if(myid==0)
+    {
+        myfile.open("D:/Groebner/测试样例5 矩阵列数2362，非零消元子1226，被消元行453/消元子.txt");
+        read1();
+    }
+    int count;
+    if(N%size==0)
+    {
+        count=N/size;
+    }
+    else
+    {
+        count=N/size+1;
+    }
+    for(int k=0;k<count;k++)
+    {
+        func(k);
+        if(myid==0&&k<count-1)
+        {
+            read2(k+1);
+        }
+    }
+	if(myid==num-1)
+    {
+		 double et=MPI_Wtime();
+		 cout<<"num:"<<num<<" N:"<<N<<" mpi_time:"<<(et-st)<<endl;
+		/*for(int i=0;i<n;i++)
+		{
+			for(int j=0;j<N;j++)
+			{
+				if(E[i][j]==1)
+					cout<<N-1-j<<" ";
+			}
+			cout<<endl;
+		}*/
+	}
+	MPI_Finalize();
+}
