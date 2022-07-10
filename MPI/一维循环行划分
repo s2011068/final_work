@@ -222,19 +222,19 @@ void func(int temp)
                     break;
                 }
             }
-			for(int id=0;id<num;id++)
+			for(int id=1;id<num;id++)
 			{
 				MPI_Send(R,size*N,MPI_FLOAT,id,0,MPI_COMM_WORLD);
 			}
-			for(int id=0;id<num;id++)
+			for(int id=1;id<num;id++)
 			{
 				MPI_Send(E,n*N,MPI_FLOAT,id,1,MPI_COMM_WORLD);
 			}
-			for(int id=0;id<num;id++)
+			for(int id=1;id<num;id++)
 			{
 				MPI_Send(lp_E,N,MPI_INT,id,2,MPI_COMM_WORLD);
 			}
-			for(int id=0;id<num;id++)
+			for(int id=1;id<num;id++)
 			{
 				MPI_Send(&t,1,MPI_INT,id,3,MPI_COMM_WORLD);
 			}
