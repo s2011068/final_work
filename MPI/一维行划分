@@ -2,9 +2,10 @@
 #include<fstream>
 #include<sstream>
 #include<mpi.h>
+#include<algorithm>
 using namespace std;
-const int n=8;
-const int N=130;
+const int n=53;
+const int N=562;
 const int size=N;
 const int NUM_THREADS=8;
 float E[n][N];
@@ -23,7 +24,7 @@ void read1()
 {
     //读入被消元行信息
 
-    ifstream myfile1("D:/Groebner/测试样例1 矩阵列数130，非零消元子22，被消元行8/被消元行.txt");
+    ifstream myfile1("D:/Groebner/测试样例3 矩阵列数562，非零消元子170，被消元行53/被消元行.txt");
     if (!myfile1.is_open())
     {
         cout << "can't open file:2.txt" << endl;
@@ -191,7 +192,6 @@ void func(int temp)
                         //消元子为空，将第一个首项为消元子行数相同的被消元行升为消元子
                         for(k=0;k<N;k++)
                         {
-
                             R[i][k]=E[j][k];
                         }
                         lp_E[j]=-1;
@@ -250,10 +250,9 @@ void func(int temp)
 
 		}
             //继续和首项为消元子行数的被消元行进行异或计算
-			for(j=t;j<n;j++)
+
+			for(j=max(t,r1);j<=r2;j++)
             {
-				if(r1<=j&&j<=r2)
-				{
 					int temp2=-1;
 					if(N-1-lp_E[j]==(temp*size+i))
 					{
@@ -279,34 +278,7 @@ void func(int temp)
 						{
 							lp_E[j]=-1;
 						}
-						for(int id=myid+1; id<num;id++)
-						{
-							MPI_Send(&E[j][0],N,MPI_FLOAT,id,0,MPI_COMM_WORLD);
-						}
-						for(int id=myid+1; id<num;id++)
-						{
-							MPI_Send(&lp_E[j],1,MPI_INT,id,1,MPI_COMM_WORLD);
-						}
-
 					}
-				}
-				else
-				{	
-					if(N-1-lp_E[j]==(temp*size+i))
-					{
-						int id=j/(N/num);
-						if(id>=num)
-						{
-							id=num-1;
-						}
-						if(myid>id)
-						{
-							MPI_Recv(&E[j][0],N,MPI_FLOAT,id,0,MPI_COMM_WORLD,&status);
-							MPI_Recv(&lp_E[j],1,MPI_FLOAT,id,1,MPI_COMM_WORLD,&status);
-						}
-					}
-				}
-
 			}
     }
 
@@ -330,7 +302,7 @@ int main(int argc,char *argv[])
     }
     if(myid==0)
     {
-        myfile.open("D:/Groebner/测试样例1 矩阵列数130，非零消元子22，被消元行8/消元子.txt");
+        myfile.open("D:/Groebner/测试样例3 矩阵列数562，非零消元子170，被消元行53/消元子.txt");
         read1();
     }
     int count;
